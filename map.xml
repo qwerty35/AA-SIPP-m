@@ -52,7 +52,7 @@
 </grid>
 </map>
 <algorithm>
-<allowanyangle>true</allowanyangle>
+<allowanyangle>false</allowanyangle>
 <metrictype>euclid</metrictype>
 <breakingties>g-max</breakingties>
 <weight>1</weight>

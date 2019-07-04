@@ -16,14 +16,18 @@ public:
     ~Mission();
 
     bool getMap();
+    void setMap(Map map);
     bool getTask();
+    void setTask(Task task);
     bool getConfig();
+    void setConfig(Config config);
     bool getObstacles();
     void createLog();
     void createSearch();
     void startSearch();
     void printSearchResultsToConsole();
     void saveSearchResultsToLog();
+    SearchResult getSearchResult();
     void setFileNames(const char *taskName, const char* mapName, const char *configName, const char *obstaclesName);
 
 private:

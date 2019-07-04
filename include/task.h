@@ -10,6 +10,7 @@
 
 class Task
 {
+public:
     std::vector<Agent> agents;
 public:
     Task(){}

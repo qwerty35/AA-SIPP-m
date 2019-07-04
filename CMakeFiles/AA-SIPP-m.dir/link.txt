@@ -1,0 +1,2 @@
+/usr/bin/ar qc libAA-SIPP-m.a  CMakeFiles/AA-SIPP-m.dir/src/main.cpp.o CMakeFiles/AA-SIPP-m.dir/src/tinyxml2.cpp.o CMakeFiles/AA-SIPP-m.dir/src/xmlLogger.cpp.o CMakeFiles/AA-SIPP-m.dir/src/mission.cpp.o CMakeFiles/AA-SIPP-m.dir/src/map.cpp.o CMakeFiles/AA-SIPP-m.dir/src/task.cpp.o CMakeFiles/AA-SIPP-m.dir/src/config.cpp.o CMakeFiles/AA-SIPP-m.dir/src/dynamicobstacles.cpp.o CMakeFiles/AA-SIPP-m.dir/src/aa_sipp.cpp.o CMakeFiles/AA-SIPP-m.dir/src/constraints.cpp.o
+/usr/bin/ranlib libAA-SIPP-m.a

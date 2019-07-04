@@ -25,14 +25,27 @@ bool Mission::getMap()
     return m_map.getMap(mapName);
 }
 
+void Mission::setMap(Map map){
+    m_map = map;
+}
+
 bool Mission::getTask()
 {
     return (m_task.getTask(taskName) && m_task.validateTask(m_map));
 }
 
+void Mission::setTask(Task task){
+    m_task = task;
+}
+
 bool Mission::getConfig()
 {
     return m_config.getConfig(configName);
+}
+
+void Mission::setConfig(Config config)
+{
+    m_config = config;
 }
 
 bool Mission::getObstacles()
@@ -88,5 +101,10 @@ void Mission::saveSearchResultsToLog()
     }
     m_pLogger->saveLog();
     std::cout<<"LOG SAVED\n";
+}
+
+SearchResult Mission::getSearchResult()
+{
+    return sr;
 }
 

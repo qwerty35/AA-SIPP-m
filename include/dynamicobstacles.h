@@ -10,6 +10,7 @@
 
 class DynamicObstacles
 {
+public:
     std::vector<obstacle> obstacles;
 public:
     DynamicObstacles();

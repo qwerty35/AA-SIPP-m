@@ -22,6 +22,7 @@ public:
     bool getConfig();
     void setConfig(Config config);
     bool getObstacles();
+    void setObstacles(DynamicObstacles dynamicObstacles);
     void createLog();
     void createSearch();
     void startSearch();

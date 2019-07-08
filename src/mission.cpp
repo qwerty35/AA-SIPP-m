@@ -56,6 +56,10 @@ bool Mission::getObstacles()
         return false;
 }
 
+void Mission::setObstacles(DynamicObstacles dynamicObstacles) {
+    m_obstacles = dynamicObstacles;
+}
+
 void Mission::createSearch()
 {
     if(m_pSearch)

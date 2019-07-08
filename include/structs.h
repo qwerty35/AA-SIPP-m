@@ -34,6 +34,17 @@ struct Agent
              start_heading = CN_DEFAULT_SHEADING; goal_heading = CN_DEFAULT_GHEADING; }
 };
 
+struct DynamicAgent
+{
+    std::string id;
+    std::vector<double> startState;
+    std::vector<double> goalState;
+    double size;
+    double speed;
+    DynamicAgent(){ startState.resize(9); goalState.resize(9);
+        size = CN_DEFAULT_SIZE; speed = CN_DEFAULT_RSPEED;}
+};
+
 struct constraint
 {
     double i;

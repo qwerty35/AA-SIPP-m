@@ -4,6 +4,7 @@ project( AA-SIPP-m )
 
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -O2 -Wall -Wextra" )
 set( CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++" )
+set( CMAKE_BUILD_TYPE Debug)
 
 include_directories(
 	include

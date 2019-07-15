@@ -39,10 +39,11 @@ struct DynamicAgent
     std::string id;
     std::vector<double> startState;
     std::vector<double> goalState;
+    std::vector<double> speed;
+    double mspeed;
     double size;
-    double speed;
-    DynamicAgent(){ startState.resize(9); goalState.resize(9);
-        size = CN_DEFAULT_SIZE; speed = CN_DEFAULT_RSPEED;}
+    DynamicAgent(){ startState.resize(9); goalState.resize(9); speed.resize(3);
+                    size = CN_DEFAULT_SIZE;}
 };
 
 struct constraint

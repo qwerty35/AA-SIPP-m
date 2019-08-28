@@ -1,5 +1,7 @@
 #include "aa_sipp.h"
 
+using namespace SIPP;
+
 AA_SIPP::AA_SIPP(const Config &config)
 {
     this->config = std::make_shared<const Config> (config);

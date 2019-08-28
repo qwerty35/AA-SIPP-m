@@ -8,18 +8,25 @@
 #include <iostream>
 #include <math.h>
 
-class DynamicObstacles
-{
-public:
-    std::vector<obstacle> obstacles;
-public:
-    DynamicObstacles();
-    bool getObstacles(const char* fileName);
-    std::vector<Node> getSections(int num) const;
-    double getSize(int num) const;
-    double getMSpeed(int num) const;
-    std::string getID(int num) const;
-    int getNumberOfObstacles() const { return obstacles.size(); }
-};
+namespace SIPP {
+    class DynamicObstacles {
+    public:
+        std::vector<obstacle> obstacles;
+    public:
+        DynamicObstacles();
+
+        bool getObstacles(const char *fileName);
+
+        std::vector<Node> getSections(int num) const;
+
+        double getSize(int num) const;
+
+        double getMSpeed(int num) const;
+
+        std::string getID(int num) const;
+
+        int getNumberOfObstacles() const { return obstacles.size(); }
+    };
+}
 
 #endif // DYNAMICOBSTACLES_H

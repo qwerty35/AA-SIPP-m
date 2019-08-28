@@ -1,4 +1,5 @@
 #include "constraints.h"
+using namespace SIPP;
 
 Constraints::Constraints(int width, int height)
 {

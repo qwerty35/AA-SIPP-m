@@ -1,5 +1,6 @@
 #include "task.h"
 using namespace tinyxml2;
+using namespace SIPP;
 
 bool Task::getTask(const char *fileName)
 {

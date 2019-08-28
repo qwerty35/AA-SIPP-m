@@ -1,4 +1,5 @@
 #include"mission.h"
+using namespace SIPP;
 
 Mission::Mission()
 {

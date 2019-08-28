@@ -1,5 +1,6 @@
 #include "dynamicobstacles.h"
 using namespace tinyxml2;
+using namespace SIPP;
 
 DynamicObstacles::DynamicObstacles()
 {

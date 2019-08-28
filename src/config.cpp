@@ -1,5 +1,6 @@
 #include "config.h"
 using namespace tinyxml2;
+using namespace SIPP;
 
 Config::Config()
 {

@@ -9,6 +9,8 @@
 #include "searchresult.h"
 #include <fstream>
 
+using namespace SIPP;
+
 class XmlLogger
 {
 private:

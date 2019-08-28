@@ -1,5 +1,6 @@
 #include"mission.h"
 #include <iostream>
+using namespace SIPP;
 
 int main(int argc, char* argv[])
 {

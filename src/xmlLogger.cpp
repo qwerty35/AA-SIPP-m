@@ -1,5 +1,6 @@
 #include"xmlLogger.h"
 using namespace tinyxml2;
+using namespace SIPP;
 
 bool XmlLogger::createLog(const char *FileName)
 {

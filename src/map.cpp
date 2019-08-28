@@ -1,5 +1,6 @@
 #include "map.h"
 using namespace tinyxml2;
+using namespace SIPP;
 
 Map::Map()
 {

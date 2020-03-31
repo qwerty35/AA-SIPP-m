@@ -40,7 +40,7 @@ namespace SIPP {
 
         bool testGoal(const Node &curNode, Node &goalNode);
 
-        double getCost(int a_i, int a_j, int b_i, int b_j);
+        double getCost(int a_i, int a_j, int a_k, int b_i, int b_j, int b_k);
 
         double getRCost(double headingA, double headingB);
 
@@ -50,9 +50,9 @@ namespace SIPP {
 
         void makePrimaryPath(Node curNode);
 
-        void makeSecondaryPath(Node curNode);
-
-        void calculateLineSegment(std::vector<Node> &line, const Node &start, const Node &goal);
+//        void makeSecondaryPath(Node curNode);
+//
+//        void calculateLineSegment(std::vector<Node> &line, const Node &start, const Node &goal);
 
         void addConstraints() {}
 
@@ -64,7 +64,7 @@ namespace SIPP {
                 const Task &task);//bruteforce checker. It splits final(already built) trajectories into sequences of points and checks distances between them
         void setPriorities(const Task &task);
 
-        double getHValue(int i, int j);
+        double getHValue(int i, int j, int k);
 
         bool changePriorities(int bad_i);
 

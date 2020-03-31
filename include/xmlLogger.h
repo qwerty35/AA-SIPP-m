@@ -27,7 +27,7 @@ public:
     void writeToLogFile(const char* fileName);
     void writeToLogSummary(const SearchResult &sr);
     void writeToLogPath(const SearchResult &sresult, const Task &task, const Config &config);
-    void writeToLogMap(const Map &map, const SearchResult &sresult);
+//    void writeToLogMap(const Map &map, const SearchResult &sresult);
     void saveLog();
 };
 

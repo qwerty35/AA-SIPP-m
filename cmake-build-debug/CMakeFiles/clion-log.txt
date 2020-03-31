@@ -1,4 +1,0 @@
-/home/jungwon/clion-2019.1.4/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /home/jungwon/catkin_ws/src/swarm_simulator/swarm_planner/third_party/AA-SIPP-m
--- Configuring done
--- Generating done
--- Build files have been written to: /home/jungwon/catkin_ws/src/swarm_simulator/swarm_planner/third_party/AA-SIPP-m

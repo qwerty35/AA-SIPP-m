@@ -179,37 +179,37 @@ void XmlLogger::writeToLogPath(const SearchResult &sresult, const Task &task, co
     }
 }
 
-void XmlLogger::writeToLogMap(const Map &map, const SearchResult &sresult)
-{
-    if (loglevel == CN_LOGLVL_NO)
-        return;
-    std::string text;
-    std::vector<int> curLine(map.width, 0);
-    XMLElement *element = doc->FirstChildElement(CNS_TAG_ROOT)->FirstChildElement(CNS_TAG_LOG);
-    element->LinkEndChild(doc->NewElement(CNS_TAG_PATH));
-    element = element->FirstChildElement(CNS_TAG_PATH);
-    XMLElement *msg;
-
-    for(int i = 0; i < map.height; i++)
-    {
-        msg = doc->NewElement(CNS_TAG_ROW);
-        msg->SetAttribute(CNS_TAG_ATTR_NUM, i);
-        text.clear();
-        std::list<Node>::const_iterator iter;
-        for(unsigned int k = 0; k < sresult.agents; k++)
-            for(iter = sresult.pathInfo[k].path.begin(); iter != sresult.pathInfo[k].path.end(); iter++)
-                if((*iter).i == i)
-                    curLine[(*iter).j] = 1;
-
-        for(int j = 0; j < map.width; j++)
-            if(curLine[j] != 1)
-                text += std::to_string(map.Grid[i][j]) + " ";
-            else
-            {
-                text += "* ";
-                curLine[j] = 0;
-            }
-        msg->LinkEndChild(doc->NewText(text.c_str()));
-        element->LinkEndChild(msg);
-    }
-}
+//void XmlLogger::writeToLogMap(const Map &map, const SearchResult &sresult)
+//{
+//    if (loglevel == CN_LOGLVL_NO)
+//        return;
+//    std::string text;
+//    std::vector<int> curLine(map.width, 0);
+//    XMLElement *element = doc->FirstChildElement(CNS_TAG_ROOT)->FirstChildElement(CNS_TAG_LOG);
+//    element->LinkEndChild(doc->NewElement(CNS_TAG_PATH));
+//    element = element->FirstChildElement(CNS_TAG_PATH);
+//    XMLElement *msg;
+//
+//    for(int i = 0; i < map.height; i++)
+//    {
+//        msg = doc->NewElement(CNS_TAG_ROW);
+//        msg->SetAttribute(CNS_TAG_ATTR_NUM, i);
+//        text.clear();
+//        std::list<Node>::const_iterator iter;
+//        for(unsigned int k = 0; k < sresult.agents; k++)
+//            for(iter = sresult.pathInfo[k].path.begin(); iter != sresult.pathInfo[k].path.end(); iter++)
+//                if((*iter).i == i)
+//                    curLine[(*iter).j] = 1;
+//
+//        for(int j = 0; j < map.width; j++)
+//            if(curLine[j] != 1)
+//                text += std::to_string(map.Grid[i][j]) + " ";
+//            else
+//            {
+//                text += "* ";
+//                curLine[j] = 0;
+//            }
+//        msg->LinkEndChild(doc->NewText(text.c_str()));
+//        element->LinkEndChild(msg);
+//    }
+//}

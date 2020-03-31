@@ -9,6 +9,7 @@
 #ifndef LINEOFSIGHT_H
 #define LINEOFSIGHT_H
 #include "gl_const.h"
+#include <array>
 
 #define CN_OBSTACLE 1
 
@@ -21,124 +22,110 @@ namespace SIPP {
     public:
         LineOfSight(double agentSize = 0.5) {
             this->agentSize = agentSize;
-            int add_x, add_y, num = agentSize + 0.5 - CN_EPSILON;
-            for (int x = -num; x <= +num; x++)
+            int add_x, add_y, add_z, num = agentSize + 0.5 - CN_EPSILON;
+            for (int x = -num; x <= +num; x++) {
                 for (int y = -num; y <= +num; y++) {
-                    add_x = x != 0 ? 1 : 0;
-                    add_y = y != 0 ? 1 : 0;
-                    if ((pow(2 * abs(x) - add_x, 2) + pow(2 * abs(y) - add_y, 2)) < pow(2 * agentSize, 2))
-                        cells.push_back({x, y});
+                    for (int z = -num; z <= +num; z++) {
+                        add_x = x != 0 ? 1 : 0;
+                        add_y = y != 0 ? 1 : 0;
+                        add_z = z != 0 ? 1 : 0;
+                        if ((pow(2 * abs(x) - add_x, 2) + pow(2 * abs(y) - add_y, 2)) + pow(2 * abs(z) - add_z, 2) <
+                            pow(2 * agentSize, 2)) //TODO: is this right?
+                            cells.push_back({x, y, z});
+                    }
                 }
+            }
             if (cells.empty())
-                cells.push_back({0, 0});
+                cells.push_back({0, 0, 0});
         }
 
         void setSize(double agentSize) {
             this->agentSize = agentSize;
-            int add_x, add_y, num = agentSize + 0.5 - CN_EPSILON;
+            int add_x, add_y, add_z, num = agentSize + 0.5 - CN_EPSILON;
             cells.clear();
-            for (int x = -num; x <= +num; x++)
+            for (int x = -num; x <= +num; x++) {
                 for (int y = -num; y <= +num; y++) {
-                    add_x = x != 0 ? 1 : 0;
-                    add_y = y != 0 ? 1 : 0;
-                    if ((pow(2 * abs(x) - add_x, 2) + pow(2 * abs(y) - add_y, 2)) < pow(2 * agentSize, 2))
-                        cells.push_back({x, y});
+                    for(int z = -num; z <= +num; z++ ) {
+                        add_x = x != 0 ? 1 : 0;
+                        add_y = y != 0 ? 1 : 0;
+                        add_z = z != 0 ? 1 : 0;
+                        if ((pow(2 * abs(x) - add_x, 2) + pow(2 * abs(y) - add_y, 2)) + pow(2 * abs(z) - add_z, 2) <
+                            pow(2 * agentSize, 2)) //TODO: is this right?
+                            cells.push_back({x, y, z});
+                    }
                 }
+            }
             if (cells.empty())
-                cells.push_back({0, 0});
+                cells.push_back({0, 0, 0});
         }
 
         template<class T>
-        std::vector<std::pair<int, int>> getCellsCrossedByLine(int x1, int y1, int x2, int y2, const T &map) {
-            std::vector<std::pair<int, int>> lineCells(0);
-            if (x1 == x2 && y1 == y2) {
+        std::vector<std::array<int, 3>> getCellsCrossedByLine(int x1, int y1, int z1, int x2, int y2, int z2, const T &map) {
+            std::vector<std::array<int, 3>> lineCells(0);
+            if (x1 == x2 && y1 == y2 && z1 == z2) {
                 for (auto cell:cells)
-                    lineCells.push_back({x1 + cell.first, y1 + cell.second});
+                    lineCells.push_back({x1 + cell[0], y1 + cell[1], z1 + cell[2]});
                 return lineCells;
             }
             int delta_x = std::abs(x1 - x2);
             int delta_y = std::abs(y1 - y2);
-            if ((delta_x >= delta_y && x1 > x2) || (delta_y > delta_x && y1 > y2)) {
+            int delta_z = std::abs(z1 - z2);
+            if ((delta_x > 0 && x1 > x2) || (delta_y > 0 && y1 > y2) || (delta_z > 0 && z1 > z2)) {
                 std::swap(x1, x2);
                 std::swap(y1, y2);
+                std::swap(z1, z2);
             }
             int step_x = (x1 < x2 ? 1 : -1);
             int step_y = (y1 < y2 ? 1 : -1);
-            int error = 0, x = x1, y = y1;
-            int k, num;
-            std::pair<int, int> add;
-            int gap = agentSize * sqrt(pow(delta_x, 2) + pow(delta_y, 2)) + double(delta_x + delta_y) / 2 - CN_EPSILON;
-
-            if (delta_x >= delta_y) {
-                int extraCheck = agentSize * delta_y / sqrt(pow(delta_x, 2) + pow(delta_y, 2)) + 0.5 - CN_EPSILON;
-                for (int n = 1; n <= extraCheck; n++) {
-                    error += delta_y;
-                    num = (gap - error) / delta_x;
-                    for (k = 1; k <= num; k++)
-                        lineCells.push_back({x1 - n * step_x, y1 + k * step_y});
-                    for (k = 1; k <= num; k++)
-                        lineCells.push_back({x2 + n * step_x, y2 - k * step_y});
+            int step_z = (z1 < z2 ? 1 : -1);
+            int x = x1, y = y1, z = z1;
+            std::array<int, 3> add;
+            std::vector<std::array<int, 3>> circle(0);
+            if (delta_x > 0) {
+                for(int i = 0; i < cells.size(); i++){
+                    if(cells[i][0] == 0){
+                        circle.emplace_back(cells[i]);
+                    }
                 }
-                error = 0;
                 for (x = x1; x != x2 + step_x; x += step_x) {
-                    lineCells.push_back({x, y});
-                    if (x < x2 - extraCheck) {
-                        num = (gap + error) / delta_x;
-                        for (k = 1; k <= num; k++)
-                            lineCells.push_back({x, y + k * step_y});
-                    }
-                    if (x > x1 + extraCheck) {
-                        num = (gap - error) / delta_x;
-                        for (k = 1; k <= num; k++)
-                            lineCells.push_back({x, y - k * step_y});
-                    }
-                    error += delta_y;
-                    if ((error << 1) > delta_x) {
-                        y += step_y;
-                        error -= delta_x;
+                    for(int i = 0; i < circle.size(); i++){
+                        lineCells.push_back({x, y + circle[i][1], z + circle[i][2]});
                     }
                 }
-            } else {
-                int extraCheck = agentSize * delta_x / sqrt(pow(delta_x, 2) + pow(delta_y, 2)) + 0.5 - CN_EPSILON;
-                for (int n = 1; n <= extraCheck; n++) {
-                    error += delta_x;
-                    num = (gap - error) / delta_y;
-                    for (k = 1; k <= num; k++)
-                        lineCells.push_back({x1 + k * step_x, y1 - n * step_y});
-                    for (k = 1; k <= num; k++)
-                        lineCells.push_back({x2 - k * step_x, y2 + n * step_y});
+            } else if(delta_y > 0) {
+                for(int i = 0; i < cells.size(); i++){
+                    if(cells[i][1] == 0){
+                        circle.emplace_back(cells[i]);
+                    }
                 }
-                error = 0;
                 for (y = y1; y != y2 + step_y; y += step_y) {
-                    lineCells.push_back({x, y});
-                    if (y < y2 - extraCheck) {
-                        num = (gap + error) / delta_y;
-                        for (k = 1; k <= num; k++)
-                            lineCells.push_back({x + k * step_x, y});
+                    for(int i = 0; i < circle.size(); i++){
+                        lineCells.push_back({x + circle[i][0], y, z + circle[i][2]});
                     }
-                    if (y > y1 + extraCheck) {
-                        num = (gap - error) / delta_y;
-                        for (k = 1; k <= num; k++)
-                            lineCells.push_back({x - k * step_x, y});
+                }
+            } else{
+                for(int i = 0; i < cells.size(); i++){
+                    if(cells[i][2] == 0){
+                        circle.emplace_back(cells[i]);
                     }
-                    error += delta_x;
-                    if ((error << 1) > delta_y) {
-                        x += step_x;
-                        error -= delta_y;
+                }
+                for (z = z1; z != z2 + step_z; z += step_z) {
+                    for(int i = 0; i < circle.size(); i++){
+                        lineCells.push_back({x + circle[i][0], y + circle[i][1], z});
                     }
                 }
             }
-            for (k = 0; k < cells.size(); k++) {
-                add = {x1 + cells[k].first, y1 + cells[k].second};
+            for (int k = 0; k < cells.size(); k++) {
+                add = {x1 + cells[k][0], y1 + cells[k][1], z1 + cells[k][2]};
                 if (std::find(lineCells.begin(), lineCells.end(), add) == lineCells.end())
                     lineCells.push_back(add);
-                add = {x2 + cells[k].first, y2 + cells[k].second};
+                add = {x2 + cells[k][0], y2 + cells[k][1], z2 + cells[k][2]};
                 if (std::find(lineCells.begin(), lineCells.end(), add) == lineCells.end())
                     lineCells.push_back(add);
             }
 
             for (auto it = lineCells.begin(); it != lineCells.end(); it++)
-                if (!map.CellOnGrid(it->first, it->second)) {
+                if (!map.CellOnGrid(it->at(0), it->at(1), it->at(2))) {
                     lineCells.erase(it);
                     it = lineCells.begin();
                 }
@@ -147,119 +134,84 @@ namespace SIPP {
         //returns all cells that are affected by agent during moving along a line
 
         template<class T>
-        bool checkTraversability(int x, int y, const T &map) {
+        bool checkTraversability(int x, int y, int z, const T &map) {
             for (int k = 0; k < cells.size(); k++)
-                if (!map.CellOnGrid(x + cells[k].first, y + cells[k].second) ||
-                    map.CellIsObstacle(x + cells[k].first, y + cells[k].second))
+                if (!map.CellOnGrid(x + cells[k][0], y + cells[k][1], z + cells[k][2]) ||
+                    map.CellIsObstacle(x + cells[k][0], y + cells[k][1], z + cells[k][2]))
                     return false;
             return true;
         }
         //checks traversability of all cells affected by agent's body
 
         template<class T>
-        bool checkLine(int x1, int y1, int x2, int y2, const T &map) {
+        bool checkLine(int x1, int y1, int z1, int x2, int y2, int z2, const T &map) {
             //if(!checkTraversability(x1, y1) || !checkTraversability(x2, y2)) //additional check of start and goal traversability,
             //    return false;                                                //it can be removed if they are already checked
 
             int delta_x = std::abs(x1 - x2);
             int delta_y = std::abs(y1 - y2);
-            if ((delta_x > delta_y && x1 > x2) || (delta_y >= delta_x && y1 > y2)) {
+            int delta_z = std::abs(z1 - z2);
+            if ((delta_x > 0 && x1 > x2) || (delta_y > 0 && y1 > y2) || (delta_z > 0 && z1 > z2)) {
                 std::swap(x1, x2);
                 std::swap(y1, y2);
+                std::swap(z1, z2);
             }
             int step_x = (x1 < x2 ? 1 : -1);
             int step_y = (y1 < y2 ? 1 : -1);
-            int error = 0, x = x1, y = y1;
-            int gap = agentSize * sqrt(pow(delta_x, 2) + pow(delta_y, 2)) + double(delta_x + delta_y) / 2 - CN_EPSILON;
-            int k, num;
+            int step_z = (z1 < z2 ? 1 : -1);
+            int x = x1, y = y1, z = z1;
+            std::vector<std::array<int, 3>> circle(0);
 
-            if (delta_x > delta_y) {
-                int extraCheck = agentSize * delta_y / sqrt(pow(delta_x, 2) + pow(delta_y, 2)) + 0.5 - CN_EPSILON;
-                for (int n = 1; n <= extraCheck; n++) {
-                    error += delta_y;
-                    num = (gap - error) / delta_x;
-                    for (k = 1; k <= num; k++)
-                        if (map.CellOnGrid(x1 - n * step_x, y1 + k * step_y))
-                            if (map.CellIsObstacle(x1 - n * step_x, y1 + k * step_y))
-                                return false;
-                    for (k = 1; k <= num; k++)
-                        if (map.CellOnGrid(x2 + n * step_x, y2 - k * step_y))
-                            if (map.CellIsObstacle(x2 + n * step_x, y2 - k * step_y))
-                                return false;
-                }
-                error = 0;
+            if (delta_x > 0) {
                 for (x = x1; x != x2 + step_x; x += step_x) {
-                    if (map.CellIsObstacle(x, y))
-                        return false;
-                    if (x < x2 - extraCheck) {
-                        num = (gap + error) / delta_x;
-                        for (k = 1; k <= num; k++)
-                            if (map.CellIsObstacle(x, y + k * step_y))
-                                return false;
+                    for(int i = 0; i < cells.size(); i++){
+                        if(cells[i][0] == 0){
+                            circle.emplace_back(cells[i]);
+                        }
                     }
-                    if (x > x1 + extraCheck) {
-                        num = (gap - error) / delta_x;
-                        for (k = 1; k <= num; k++)
-                            if (map.CellIsObstacle(x, y - k * step_y))
-                                return false;
-                    }
-                    error += delta_y;
-                    if ((error << 1) > delta_x) {
-                        y += step_y;
-                        error -= delta_x;
+                    for(int i = 0; i < circle.size(); i++) {
+                        if (map.CellIsObstacle(x, y + circle[i][1], z + circle[i][2])) {
+                            return false;
+                        }
                     }
                 }
-            } else {
-                int extraCheck = agentSize * delta_x / sqrt(pow(delta_x, 2) + pow(delta_y, 2)) + 0.5 - CN_EPSILON;
-                for (int n = 1; n <= extraCheck; n++) {
-                    error += delta_x;
-                    num = (gap - error) / delta_y;
-                    for (k = 1; k <= num; k++)
-                        if (map.CellOnGrid(x1 + k * step_x, y1 - n * step_y))
-                            if (map.CellIsObstacle(x1 + k * step_x, y1 - n * step_y))
-                                return false;
-                    for (k = 1; k <= num; k++)
-                        if (map.CellOnGrid(x2 - k * step_x, y2 + n * step_y))
-                            if (map.CellIsObstacle(x2 - k * step_x, y2 + n * step_y))
-                                return false;
+            } else if(delta_y > 0) {
+                for(int i = 0; i < cells.size(); i++){
+                    if(cells[i][1] == 0){
+                        circle.emplace_back(cells[i]);
+                    }
                 }
-                error = 0;
-                for (y = y1; y != y2 + step_y; y += step_y) {
-                    if (map.CellIsObstacle(x, y))
+                for(int i = 0; i < circle.size(); i++){
+                    if (map.CellIsObstacle(x + circle[i][0], y, z + circle[i][2])) {
                         return false;
-                    if (y < y2 - extraCheck) {
-                        num = (gap + error) / delta_y;
-                        for (k = 1; k <= num; k++)
-                            if (map.CellIsObstacle(x + k * step_x, y))
-                                return false;
                     }
-                    if (y > y1 + extraCheck) {
-                        num = (gap - error) / delta_y;
-                        for (k = 1; k <= num; k++)
-                            if (map.CellIsObstacle(x - k * step_x, y))
-                                return false;
+                }
+            } else{
+                for(int i = 0; i < cells.size(); i++){
+                    if(cells[i][2] == 0){
+                        circle.emplace_back(cells[i]);
                     }
-                    error += delta_x;
-                    if ((error << 1) > delta_y) {
-                        x += step_x;
-                        error -= delta_y;
+                }
+                for(int i = 0; i < circle.size(); i++){
+                    if (map.CellIsObstacle(x + circle[i][0], y + circle[i][1], z)) {
+                        return false;
                     }
                 }
             }
             return true;
         }
-
         //checks line-of-sight between a line
-        std::vector<std::pair<int, int>> getCells(int i, int j) {
-            std::vector<std::pair<int, int>> cells;
-            for (int k = 0; k < this->cells.size(); k++)
-                cells.push_back({i + this->cells[k].first, j + this->cells[k].second});
+
+        std::vector<std::array<int, 3>> getCells(int i, int j, int k) {
+            std::vector<std::array<int, 3>> cells;
+            for (int iter = 0; iter < this->cells.size(); iter++)
+                cells.push_back({i + this->cells[iter][0], j + this->cells[iter][1], k + this->cells[iter][2]});
             return cells;
         }
 
     private:
         double agentSize;
-        std::vector<std::pair<int, int>> cells; //cells that are affected by agent's body
+        std::vector<std::array<int, 3>> cells; //cells that are affected by agent's body
     };
 }
 #endif // LINEOFSIGHT_H

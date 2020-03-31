@@ -20,7 +20,7 @@ bool AA_SIPP::stopCriterion(const Node &curNode, Node &goalNode)
         std::cout << "OPEN list is empty! ";
         return true;
     }
-    if(curNode.i == curagent.goal_i && curNode.j == curagent.goal_j && curNode.interval.second == CN_INFINITY)
+    if(curNode.i == curagent.goal_i && curNode.j == curagent.goal_j && curNode.k == curagent.goal_k && curNode.interval.second == CN_INFINITY)
     {
         if(!config->planforturns || curagent.goal_heading == CN_HEADING_WHATEVER)
             goalNode = curNode;
@@ -36,20 +36,14 @@ bool AA_SIPP::stopCriterion(const Node &curNode, Node &goalNode)
     return false;
 }
 
-double AA_SIPP::getCost(int a_i, int a_j, int b_i, int b_j)
+double AA_SIPP::getCost(int a_i, int a_j, int a_k, int b_i, int b_j, int b_k)
 {
-    return sqrt((a_i - b_i) * (a_i - b_i) + (a_j - b_j) * (a_j - b_j));
+    return sqrt((a_i - b_i) * (a_i - b_i) + (a_j - b_j) * (a_j - b_j) + (a_k - b_k) * (a_k - b_k));
 }
 
-double AA_SIPP::getHValue(int i, int j)
+double AA_SIPP::getHValue(int i, int j, int k)
 {
-    if(config->allowanyangle || config->connectedness > 3) //euclid
-        return (sqrt(pow(i - curagent.goal_i, 2) + pow(j - curagent.goal_j, 2)))/curagent.mspeed;
-    else if(config->connectedness == 2)//manhattan
-        return (abs(i - curagent.goal_i) + abs(j - curagent.goal_j))/curagent.mspeed;
-    else //k=3, use diagonal
-        return (abs(abs(i - curagent.goal_i) - abs(j - curagent.goal_j)) + sqrt(2.0)*std::min(abs(i - curagent.goal_i), abs(j - curagent.goal_j)))/curagent.mspeed;
-
+    return (sqrt(pow(i - curagent.goal_i, 2) + pow(j - curagent.goal_j, 2) + pow(k - curagent.goal_k, 2)))/curagent.mspeed;
 }
 
 double AA_SIPP::getRCost(double headingA, double headingB)
@@ -62,7 +56,7 @@ double AA_SIPP::getRCost(double headingA, double headingB)
 
 double AA_SIPP::calcHeading(const Node &node, const Node &son)
 {
-    double heading = acos((son.j - node.j)/getCost(son.i, son.j, node.i, node.j))*180/PI;
+    double heading = acos((son.j - node.j)/getCost(son.i, son.j, 0, node.i, node.j, 0))*180/PI;
     if(node.i < son.i)
         heading = 360 - heading;
     return heading;
@@ -75,20 +69,21 @@ std::list<Node> AA_SIPP::findSuccessors(const Node curNode, const Map &map)
     std::vector<double> EAT;
     std::vector<std::pair<double, double>> intervals;
     double h_value;
-    auto parent = &(close.find(curNode.i*map.width + curNode.j)->second);
-    std::vector<Node> moves = map.getValidMoves(curNode.i, curNode.j, config->connectedness, curagent.size);
+    auto parent = &(close.find(curNode.i*map.dimy*map.dimz + curNode.j*map.dimz + curNode.k)->second);
+    std::vector<Node> moves = map.getValidMoves(curNode.i, curNode.j, curNode.k, config->connectedness, curagent.size);
     for(auto m:moves)
-        if(lineofsight.checkTraversability(curNode.i + m.i,curNode.j + m.j,map))
+        if(lineofsight.checkTraversability(curNode.i + m.i, curNode.j + m.j, curNode.k + m.k, map))
         {
             newNode.i = curNode.i + m.i;
             newNode.j = curNode.j + m.j;
-            constraints->updateCellSafeIntervals({newNode.i,newNode.j});
+            newNode.k = curNode.k + m.k;
+            constraints->updateCellSafeIntervals({newNode.i,newNode.j,newNode.k});
             newNode.heading = calcHeading(curNode, newNode);
             angleNode = curNode; //the same state, but with extended g-value
             angleNode.g += getRCost(angleNode.heading, newNode.heading) + config->additionalwait;//to compensate the amount of time required for rotation
             newNode.g = angleNode.g + m.g/curagent.mspeed;
             newNode.Parent = &angleNode;
-            h_value = getHValue(newNode.i, newNode.j);
+            h_value = getHValue(newNode.i, newNode.j, newNode.k);
 
             if(angleNode.g <= angleNode.interval.second)
             {
@@ -102,38 +97,38 @@ std::list<Node> AA_SIPP::findSuccessors(const Node curNode, const Map &map)
                     successors.push_front(newNode);
                 }
             }
-            if(config->allowanyangle)
-            {
-                newNode = resetParent(newNode, curNode, map);
-                if(newNode.Parent->i != parent->i || newNode.Parent->j != parent->j)
-                {
-                    angleNode = *newNode.Parent;
-                    newNode.heading = calcHeading(*newNode.Parent, newNode);//new heading with respect to new parent
-                    angleNode.g += getRCost(angleNode.heading, newNode.heading) + config->additionalwait;//count new additional time required for rotation
-                    newNode.g += getRCost(angleNode.heading, newNode.heading) + config->additionalwait;
-                    newNode.Parent = &angleNode;
-                    if(angleNode.g > angleNode.interval.second)
-                        continue;
-                    intervals = constraints->findIntervals(newNode, EAT, close, map);
-                    for(unsigned int k = 0; k < intervals.size(); k++)
-                    {
-                        newNode.interval = intervals[k];
-                        newNode.Parent = parent->Parent;
-                        newNode.g = EAT[k];
-                        newNode.F = newNode.g + h_value;
-                        successors.push_front(newNode);
-                    }
-                }
-            }
+//            if(config->allowanyangle)
+//            {
+//                newNode = resetParent(newNode, curNode, map);
+//                if(newNode.Parent->i != parent->i || newNode.Parent->j != parent->j)
+//                {
+//                    angleNode = *newNode.Parent;
+//                    newNode.heading = calcHeading(*newNode.Parent, newNode);//new heading with respect to new parent
+//                    angleNode.g += getRCost(angleNode.heading, newNode.heading) + config->additionalwait;//count new additional time required for rotation
+//                    newNode.g += getRCost(angleNode.heading, newNode.heading) + config->additionalwait;
+//                    newNode.Parent = &angleNode;
+//                    if(angleNode.g > angleNode.interval.second)
+//                        continue;
+//                    intervals = constraints->findIntervals(newNode, EAT, close, map);
+//                    for(unsigned int k = 0; k < intervals.size(); k++)
+//                    {
+//                        newNode.interval = intervals[k];
+//                        newNode.Parent = parent->Parent;
+//                        newNode.g = EAT[k];
+//                        newNode.F = newNode.g + h_value;
+//                        successors.push_front(newNode);
+//                    }
+//                }
+//            }
         }
     return successors;
 }
 
-Node AA_SIPP::findMin(int size)
+Node AA_SIPP::findMin(int dimx)
 {
     Node min;
     min.F = std::numeric_limits<double>::max();
-    for(int i = 0; i < size; i++)
+    for(int i = 0; i < dimx; i++)
     {
         if(!open[i].empty() && open[i].begin()->F - CN_EPSILON < min.F)
         {
@@ -180,7 +175,7 @@ void AA_SIPP::addOpen(Node &newNode)
             }
         }
 
-        if (iter->j == newNode.j && fabs(iter->interval.first - newNode.interval.first) < CN_EPSILON)
+        if (iter->j == newNode.j && iter->k == newNode.k && fabs(iter->interval.first - newNode.interval.first) < CN_EPSILON)
         {
             if((iter->g - newNode.g + getRCost(iter->heading, newNode.heading)) < CN_EPSILON)//if existing state dominates new one
                 return;
@@ -218,7 +213,7 @@ void AA_SIPP::setPriorities(const Task& task)
     {
         std::vector<double> dists(task.getNumberOfAgents(), -1);
         for(int i = 0; i < task.getNumberOfAgents(); i++)
-            dists[i] = sqrt(pow(task.getAgent(i).start_i - task.getAgent(i).goal_i, 2) + pow(task.getAgent(i).start_j - task.getAgent(i).goal_j, 2));
+            dists[i] = sqrt(pow(task.getAgent(i).start_i - task.getAgent(i).goal_i, 2) + pow(task.getAgent(i).start_j - task.getAgent(i).goal_j, 2) + pow(task.getAgent(i).start_k - task.getAgent(i).goal_k, 2));
         int k = task.getNumberOfAgents() - 1;
         while(k >= 0)
         {
@@ -316,11 +311,11 @@ SearchResult AA_SIPP::startSearch(Map &map, Task &task, DynamicObstacles &obstac
     int tries(0), bad_i(0);
     double timespent(0);
     priorities.clear();
-    open.resize(map.height);
+    open.resize(map.dimx);
     setPriorities(task);
     do
     {
-        constraints = new Constraints(map.width, map.height);
+        constraints = new Constraints(map.dimx, map.dimy, map.dimz);
         for(int k = 0; k < obstacles.getNumberOfObstacles(); k++)
         {
             constraints->addConstraints(obstacles.getSections(k), obstacles.getSize(k), obstacles.getMSpeed(k), map);
@@ -338,8 +333,8 @@ SearchResult AA_SIPP::startSearch(Map &map, Task &task, DynamicObstacles &obstac
             lineofsight.setSize(curagent.size);
             if(config->startsafeinterval > 0)
             {
-                auto cells = lineofsight.getCells(curagent.start_i,curagent.start_j);
-                constraints->addStartConstraint(curagent.start_i, curagent.start_j, config->startsafeinterval, cells, curagent.size);
+                auto cells = lineofsight.getCells(curagent.start_i,curagent.start_j,curagent.start_k);
+                constraints->addStartConstraint(curagent.start_i, curagent.start_j, curagent.start_k, config->startsafeinterval, cells, curagent.size);
             }
         }
         for(unsigned int numOfCurAgent = 0; numOfCurAgent < task.getNumberOfAgents(); numOfCurAgent++)
@@ -349,8 +344,8 @@ SearchResult AA_SIPP::startSearch(Map &map, Task &task, DynamicObstacles &obstac
             lineofsight.setSize(curagent.size);
             if(config->startsafeinterval > 0)
             {
-                auto cells = lineofsight.getCells(curagent.start_i, curagent.start_j);
-                constraints->removeStartConstraint(cells, curagent.start_i, curagent.start_j);
+                auto cells = lineofsight.getCells(curagent.start_i, curagent.start_j, curagent.start_k);
+                constraints->removeStartConstraint(cells, curagent.start_i, curagent.start_j, curagent.start_k);
             }
             if(findPath(current_priorities[numOfCurAgent], map))
                 constraints->addConstraints(sresult.pathInfo[current_priorities[numOfCurAgent]].sections, curagent.size, curagent.mspeed, map);
@@ -389,7 +384,7 @@ SearchResult AA_SIPP::startSearch(Map &map, Task &task, DynamicObstacles &obstac
     {
         std::vector<conflict> confs = CheckConflicts(task);
         for(unsigned int i = 0; i < confs.size(); i++)
-            std::cout<<confs[i].i<<" "<<confs[i].j<<" "<<confs[i].g<<" "<<confs[i].agent1<<" "<<confs[i].agent2<<"\n";
+            std::cout<<confs[i].i<<" "<<confs[i].j<<" "<<confs[i].k<<" "<<confs[i].g<<" "<<confs[i].agent1<<" "<<confs[i].agent2<<"\n";
     }
     return sresult;
 }
@@ -399,9 +394,9 @@ Node AA_SIPP::resetParent(Node current, Node Parent, const Map &map)
 {
     if(Parent.Parent == nullptr || (current.i == Parent.Parent->i && current.j == Parent.Parent->j))
         return current;
-    if(lineofsight.checkLine(Parent.Parent->i, Parent.Parent->j, current.i, current.j, map))
+    if(lineofsight.checkLine(Parent.Parent->i, Parent.Parent->j, Parent.Parent->k, current.i, current.j, current.k, map))
     {
-        current.g = Parent.Parent->g + getCost(Parent.Parent->i, Parent.Parent->j, current.i, current.j)/curagent.mspeed;
+        current.g = Parent.Parent->g + getCost(Parent.Parent->i, Parent.Parent->j, Parent.Parent->k, current.i, current.j, current.k)/curagent.mspeed;
         current.Parent = Parent.Parent;
     }
     return current;
@@ -423,20 +418,20 @@ bool AA_SIPP::findPath(unsigned int numOfCurAgent, const Map &map)
         open[i].clear();
     ResultPathInfo resultPath;
     openSize = 0;
-    constraints->resetSafeIntervals(map.width, map.height);
-    constraints->updateCellSafeIntervals({curagent.start_i, curagent.start_j});
-    Node curNode(curagent.start_i, curagent.start_j, 0, 0), goalNode(curagent.goal_i, curagent.goal_j, CN_INFINITY, CN_INFINITY);
-    curNode.F = getHValue(curNode.i, curNode.j);
-    curNode.interval = constraints->getSafeInterval(curNode.i, curNode.j, 0);
+    constraints->resetSafeIntervals(map.dimx, map.dimy, map.dimz);
+    constraints->updateCellSafeIntervals({curagent.start_i, curagent.start_j, curagent.start_k});
+    Node curNode(curagent.start_i, curagent.start_j, curagent.start_k, 0, 0), goalNode(curagent.goal_i, curagent.goal_j, curagent.goal_k, CN_INFINITY, CN_INFINITY);
+    curNode.F = getHValue(curNode.i, curNode.j, curNode.k);
+    curNode.interval = constraints->getSafeInterval(curNode.i, curNode.j, curNode.k, 0);
     curNode.heading = curagent.start_heading;
     open[curNode.i].push_back(curNode);
     openSize++;
     while(!stopCriterion(curNode, goalNode))
     {
-        curNode = findMin(map.height);
+        curNode = findMin(map.dimx);
         open[curNode.i].pop_front();
         openSize--;
-        close.insert({curNode.i * map.width + curNode.j, curNode});
+        close.insert({curNode.i * map.dimy * map.dimz + curNode.j * map.dimz+ curNode.k, curNode});
         for(Node s:findSuccessors(curNode, map))
             addOpen(s);
     }
@@ -451,9 +446,9 @@ bool AA_SIPP::findPath(unsigned int numOfCurAgent, const Map &map)
         resultPath.runtime = static_cast<double long>(end.QuadPart-begin.QuadPart) / freq.QuadPart;
 #endif
         resultPath.sections = hppath;
-        makeSecondaryPath(goalNode);
+//        makeSecondaryPath(goalNode);
         resultPath.pathfound = true;
-        resultPath.path = lppath;
+//        resultPath.path = lppath;
         resultPath.pathlength = goalNode.g;
         sresult.pathfound = true;
         sresult.flowtime += goalNode.g;
@@ -501,6 +496,7 @@ std::vector<conflict> AA_SIPP::CheckConflicts(const Task &task)
             check = sresult.pathInfo[i].sections[j-1];
             int di = cur.i - check.i;
             int dj = cur.j - check.j;
+            int dk = cur.k - check.k;
             double dist = (cur.g - check.g)*10;
             int steps = (cur.g - check.g)*10;
             if(dist - steps + part >= 1)
@@ -512,11 +508,14 @@ std::vector<conflict> AA_SIPP::CheckConflicts(const Task &task)
                 part += dist - steps;
             double stepi = double(di)/dist;
             double stepj = double(dj)/dist;
+            double stepk = double(dk)/dist;
             double curg = double(k)*0.1;
             double curi = check.i + (curg - check.g)*di/(cur.g - check.g);
             double curj = check.j + (curg - check.g)*dj/(cur.g - check.g);
+            double curk = check.k + (curg - check.g)*dk/(cur.g - check.g);
             conf.i = curi;
             conf.j = curj;
+            conf.k = curk;
             conf.g = curg;
             if(curg <= cur.g)
             {
@@ -529,9 +528,11 @@ std::vector<conflict> AA_SIPP::CheckConflicts(const Task &task)
                     break;
                 curi += stepi;
                 curj += stepj;
+                curk += stepk;
                 curg += 0.1;
                 conf.i = curi;
                 conf.j = curj;
+                conf.k = curk;
                 conf.g = curg;
                 positions[i].push_back(conf);
                 k++;
@@ -541,6 +542,7 @@ std::vector<conflict> AA_SIPP::CheckConflicts(const Task &task)
         {
             conf.i = sresult.pathInfo[i].sections.back().i;
             conf.j = sresult.pathInfo[i].sections.back().j;
+            conf.k = sresult.pathInfo[i].sections.back().k;
             conf.g = sresult.pathInfo[i].sections.back().g;
             positions[i].push_back(conf);
         }
@@ -568,11 +570,12 @@ std::vector<conflict> AA_SIPP::CheckConflicts(const Task &task)
                     b = positions[j][k];
                 else
                     b = positions[j].back();
-                if(sqrt((a.i - b.i)*(a.i - b.i) + (a.j - b.j)*(a.j - b.j)) + CN_EPSILON < sumsize)
+                if(sqrt((a.i - b.i)*(a.i - b.i) + (a.j - b.j)*(a.j - b.j) + (a.k - b.k)*(a.k - b.k)) + CN_EPSILON < sumsize)
                 {
-                    std::cout<<i<<" "<<j<<" "<<a.i<<" "<<a.j<<" "<<b.i<<" "<<b.j<<" "<<sqrt((a.i - b.i)*(a.i - b.i) + (a.j - b.j)*(a.j - b.j))<<"\n";
+                    std::cout<<i<<" "<<j<<" "<<a.i<<" "<<a.j<<" "<<a.k<<" "<<b.i<<" "<<b.j<<" "<<b.k<<" "<<sqrt((a.i - b.i)*(a.i - b.i) + (a.j - b.j)*(a.j - b.j) + (a.k - b.k)*(a.k - b.k))<<"\n";
                     conf.i = b.i;
                     conf.j = b.j;
+                    conf.k = b.k;
                     conf.agent1 = i;
                     conf.agent2 = j;
                     conf.g = b.g;
@@ -615,11 +618,11 @@ void AA_SIPP::makePrimaryPath(Node curNode)
     }
     for(unsigned int i = 1; i < hppath.size(); i++)
     {
-        if((hppath[i].g - (hppath[i - 1].g + getCost(hppath[i].i, hppath[i].j, hppath[i - 1].i, hppath[i - 1].j)/curagent.mspeed)) > CN_EPSILON)
+        if((hppath[i].g - (hppath[i - 1].g + getCost(hppath[i].i, hppath[i].j, hppath[i].k, hppath[i - 1].i, hppath[i - 1].j, hppath[i - 1].k)/curagent.mspeed)) > CN_EPSILON)
         {
             Node add = hppath[i - 1];
             add.Parent = hppath[i].Parent;
-            add.g = hppath[i].g - getCost(hppath[i].i, hppath[i].j, hppath[i - 1].i, hppath[i - 1].j)/curagent.mspeed;
+            add.g = hppath[i].g - getCost(hppath[i].i, hppath[i].j, hppath[i].k, hppath[i - 1].i, hppath[i - 1].j, hppath[i - 1].k)/curagent.mspeed;
             add.heading = hppath[i].heading;
             hppath.emplace(hppath.begin() + i, add);
             i++;
@@ -630,64 +633,69 @@ void AA_SIPP::makePrimaryPath(Node curNode)
     return;
 }
 
-void AA_SIPP::makeSecondaryPath(Node curNode)
-{
-    lppath.clear();
-    if(curNode.Parent != nullptr)
-    {
-        std::vector<Node> lineSegment;
-        do
-        {
-            calculateLineSegment(lineSegment, *curNode.Parent, curNode);
-            lppath.insert(lppath.begin(), ++lineSegment.begin(), lineSegment.end());
-            curNode = *curNode.Parent;
-        }
-        while(curNode.Parent != nullptr);
-        lppath.push_front(*lineSegment.begin());
-    }
-    else
-        lppath.push_front(curNode);
-}
-
-void AA_SIPP::calculateLineSegment(std::vector<Node> &line, const Node &start, const Node &goal)
-{
-    int i1 = start.i;
-    int i2 = goal.i;
-    int j1 = start.j;
-    int j2 = goal.j;
-
-    int delta_i = std::abs(i1 - i2);
-    int delta_j = std::abs(j1 - j2);
-    int step_i = (i1 < i2 ? 1 : -1);
-    int step_j = (j1 < j2 ? 1 : -1);
-    int error = 0;
-    int i = i1;
-    int j = j1;
-    if (delta_i > delta_j)
-    {
-        for (; i != i2; i += step_i)
-        {
-            line.push_back(Node(i,j));
-            error += delta_j;
-            if ((error << 1) > delta_i)
-            {
-                j += step_j;
-                error -= delta_i;
-            }
-        }
-    }
-    else
-    {
-        for (; j != j2; j += step_j)
-        {
-            line.push_back(Node(i,j));
-            error += delta_i;
-            if ((error << 1) > delta_j)
-            {
-                i += step_i;
-                error -= delta_j;
-            }
-        }
-    }
-    return;
-}
+//void AA_SIPP::makeSecondaryPath(Node curNode)
+//{
+//    lppath.clear();
+//    if(curNode.Parent != nullptr)
+//    {
+//        std::vector<Node> lineSegment;
+//        do
+//        {
+//            calculateLineSegment(lineSegment, *curNode.Parent, curNode);
+//            lppath.insert(lppath.begin(), ++lineSegment.begin(), lineSegment.end());
+//            curNode = *curNode.Parent;
+//        }
+//        while(curNode.Parent != nullptr);
+//        lppath.push_front(*lineSegment.begin());
+//    }
+//    else
+//        lppath.push_front(curNode);
+//}
+//
+//void AA_SIPP::calculateLineSegment(std::vector<Node> &line, const Node &start, const Node &goal)
+//{
+//    int i1 = start.i;
+//    int i2 = goal.i;
+//    int j1 = start.j;
+//    int j2 = goal.j;
+//    int k1 = start.k;
+//    int k2 = goal.k;
+//
+//    int delta_i = std::abs(i1 - i2);
+//    int delta_j = std::abs(j1 - j2);
+//    int delta_k = std::abs(k1 - k2);
+//    int step_i = (i1 < i2 ? 1 : -1);
+//    int step_j = (j1 < j2 ? 1 : -1);
+//    int step_k = (k1 < k2 ? 1 : -1);
+//    int error = 0;
+//    int i = i1;
+//    int j = j1;
+//    int k = k1;
+//    if (delta_i > delta_j)/////////////////////////////////////////////////////////////////////////////////////////////
+//    {
+//        for (; i != i2; i += step_i)
+//        {
+//            line.push_back(Node(i,j));
+//            error += delta_j;
+//            if ((error << 1) > delta_i)
+//            {
+//                j += step_j;
+//                error -= delta_i;
+//            }
+//        }
+//    }
+//    else
+//    {
+//        for (; j != j2; j += step_j)
+//        {
+//            line.push_back(Node(i,j));
+//            error += delta_i;
+//            if ((error << 1) > delta_j)
+//            {
+//                i += step_i;
+//                error -= delta_j;
+//            }
+//        }
+//    }
+//    return;
+//}

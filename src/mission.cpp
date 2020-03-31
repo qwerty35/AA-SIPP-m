@@ -21,10 +21,10 @@ void Mission::setFileNames(const char *taskName, const char *mapName, const char
     this->obstaclesName = obstaclesName;
 }
 
-bool Mission::getMap()
-{
-    return m_map.getMap(mapName);
-}
+//bool Mission::getMap()
+//{
+//    return m_map.getMap(mapName);
+//}
 
 void Mission::setMap(Map map){
     m_map = map;
@@ -101,7 +101,7 @@ void Mission::saveSearchResultsToLog()
     m_pLogger->writeToLogSummary(sr);
     if(sr.pathfound)
     {
-        m_pLogger->writeToLogMap(m_map, sr);
+//        m_pLogger->writeToLogMap(m_map, sr);
         m_pLogger->writeToLogPath(sr, m_task, m_config);
     }
     m_pLogger->saveLog();

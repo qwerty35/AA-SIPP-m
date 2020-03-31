@@ -13,14 +13,14 @@
 namespace SIPP {
     class Constraints {
     public:
-        Constraints(int width, int height);
+        Constraints(int dimx, int dimy, int dimz);
 
         ~Constraints() {}
 
-        void updateCellSafeIntervals(std::pair<int, int> cell);
+        void updateCellSafeIntervals(std::array<int, 3> cell);
 
         std::vector<std::pair<double, double> >
-        getSafeIntervals(Node curNode, const std::unordered_multimap<int, Node> &close, int w);
+        getSafeIntervals(Node curNode, const std::unordered_multimap<int, Node> &close, int dimy, int dimz);
 
         std::vector<std::pair<double, double> > getSafeIntervals(Node curNode);
 
@@ -30,13 +30,13 @@ namespace SIPP {
         findIntervals(Node curNode, std::vector<double> &EAT, const std::unordered_multimap<int, Node> &close,
                       const Map &map);
 
-        std::pair<double, double> getSafeInterval(int i, int j, int n) { return safe_intervals[i][j][n]; }
+        std::pair<double, double> getSafeInterval(int i, int j, int k, int n) { return safe_intervals[i][j][k][n]; }
 
-        void resetSafeIntervals(int width, int height);
+        void resetSafeIntervals(int dimx, int dimy, int dimz);
 
-        void addStartConstraint(int i, int j, int size, std::vector<std::pair<int, int>> cells, double agentsize = 0.5);
+        void addStartConstraint(int i, int j, int k, int size, std::vector<std::array<int, 3>> cells, double agentsize = 0.5);
 
-        void removeStartConstraint(std::vector<std::pair<int, int>> cells, int start_i, int start_j);
+        void removeStartConstraint(std::vector<std::array<int, 3>> cells, int start_i, int start_j, int start_k);
 
         void setSize(double size) { agentsize = size; }
 
@@ -48,14 +48,16 @@ namespace SIPP {
             this->inflateintervals = inflateintervals;
         }
 
-        double minDist(Point A, Point C, Point D);
+        double minDist_LineSegment(Point A, Point C, Point D);
+
+        double minDist_StraightLine(Point A, Point C, Point D);
 
 
     private:
         bool hasCollision(const Node &curNode, double startTimeA, const section &constraint, bool &goal_collision);
 
-        std::vector<std::vector<std::vector<section>>> constraints;
-        std::vector<std::vector<std::vector<std::pair<double, double>>>> safe_intervals;
+        std::vector<std::vector<std::vector<std::vector<section>>>> constraints;
+        std::vector<std::vector<std::vector<std::vector<std::pair<double, double>>>>> safe_intervals;
         double rspeed;
         double mspeed;
         double agentsize;

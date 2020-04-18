@@ -19,8 +19,6 @@ namespace SIPP {
 
         std::vector<Node> getSections(int num) const;
 
-        double getSize(int num) const;
-
         double getMSpeed(int num) const;
 
         std::string getID(int num) const;

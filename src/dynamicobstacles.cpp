@@ -84,12 +84,6 @@ std::vector<Node> DynamicObstacles::getSections(int num) const
         return obstacles[num].sections;
 }
 
-double DynamicObstacles::getSize(int num) const
-{
-    if(num >= 0 && num < obstacles.size())
-        return obstacles[num].size;
-}
-
 double DynamicObstacles::getMSpeed(int num) const
 {
     if(num >= 0 && num < obstacles.size())

@@ -10,6 +10,7 @@
 
 //default values
 #define CN_DEFAULT_SIZE                     0.5
+#define CN_DEFAULT_DOWNWASH                 2.0
 #define CN_DEFAULT_RSPEED                   1.0
 #define CN_DEFAULT_MSPEED                   1.0
 #define CN_DEFAULT_SHEADING                 0

@@ -20,18 +20,41 @@
 namespace SIPP {
     class LineOfSight {
     public:
-        LineOfSight(double agentSize = 0.5) {
-            this->agentSize = agentSize;
-            int add_x, add_y, add_z, num = agentSize + 0.5 - CN_EPSILON;
-            for (int x = -num; x <= +num; x++) {
-                for (int y = -num; y <= +num; y++) {
-                    for (int z = -num; z <= +num; z++) {
-                        add_x = x != 0 ? 1 : 0;
-                        add_y = y != 0 ? 1 : 0;
-                        add_z = z != 0 ? 1 : 0;
-                        if ((pow(2 * abs(x) - add_x, 2) + pow(2 * abs(y) - add_y, 2)) + pow(2 * abs(z) - add_z, 2) <
-                            pow(2 * agentSize, 2)) //TODO: is this right?
-                            cells.push_back({x, y, z});
+        LineOfSight(
+//                double agentSize = 0.5
+                        ) {
+//            this->agentSize = agentSize;
+//            int add_x, add_y, add_z, num = agentSize + 0.5 - CN_EPSILON;
+//            for (int x = -num; x <= +num; x++) {
+//                for (int y = -num; y <= +num; y++) {
+//                    for (int z = -num; z <= +num; z++) {
+//                        add_x = x != 0 ? 1 : 0;
+//                        add_y = y != 0 ? 1 : 0;
+//                        add_z = z != 0 ? 1 : 0;
+//                        if ((pow(2 * abs(x) - add_x, 2) + pow(2 * abs(y) - add_y, 2)) + pow(2 * abs(z) - add_z, 2) <
+//                            pow(2 * agentSize, 2)) //TODO: is this right?
+//                            cells.push_back({x, y, z});
+//                    }
+//                }
+//            }
+//            if (cells.empty())
+                cells.push_back({0, 0, 0});
+        }
+
+        LineOfSight(CollisionModel collision_model) {
+            this->r = collision_model.r;
+            this->a = collision_model.a;
+            this->b = collision_model.b;
+
+            int x_size = r - CN_EPSILON;
+            int y_size = r - CN_EPSILON;
+            int zu_size = a - CN_EPSILON;
+            int zl_size = b - CN_EPSILON;
+
+            for (int x = -x_size; x <= +x_size; x++) {
+                for (int y = -y_size; y <= +y_size; y++) {
+                    for (int z = -zl_size; z <= +zu_size; z++) {
+                        cells.push_back({x, y, z});
                     }
                 }
             }
@@ -40,7 +63,7 @@ namespace SIPP {
         }
 
         void setSize(double agentSize) {
-            this->agentSize = agentSize;
+            r = agentSize;
             int add_x, add_y, add_z, num = agentSize + 0.5 - CN_EPSILON;
             cells.clear();
             for (int x = -num; x <= +num; x++) {
@@ -135,10 +158,13 @@ namespace SIPP {
 
         template<class T>
         bool checkTraversability(int x, int y, int z, const T &map) {
-            for (int k = 0; k < cells.size(); k++)
-                if (!map.CellOnGrid(x + cells[k][0], y + cells[k][1], z + cells[k][2]) ||
-                    map.CellIsObstacle(x + cells[k][0], y + cells[k][1], z + cells[k][2]))
-                    return false;
+//            for (int k = 0; k < cells.size(); k++)
+//                if (!map.CellOnGrid(x + cells[k][0], y + cells[k][1], z + cells[k][2]) ||
+//                    map.CellIsObstacle(x + cells[k][0], y + cells[k][1], z + cells[k][2]))
+//                    return false;
+//            return true;
+            if (!map.CellOnGrid(x, y, z) || map.CellIsObstacle(x, y, z, r))
+                return false;
             return true;
         }
         //checks traversability of all cells affected by agent's body
@@ -161,6 +187,11 @@ namespace SIPP {
             int step_z = (z1 < z2 ? 1 : -1);
             int x = x1, y = y1, z = z1;
             std::vector<std::array<int, 3>> circle(0);
+
+            // It assumes that line is all orthogonal.
+            if((delta_x > 0 && delta_y > 0) || (delta_x > 0 && delta_z > 0) || (delta_y > 0 && delta_z > 0)){
+                std::cerr << "sipp: invalid diagonal move";
+            }
 
             if (delta_x > 0) {
                 for (x = x1; x != x2 + step_x; x += step_x) {
@@ -210,7 +241,7 @@ namespace SIPP {
         }
 
     private:
-        double agentSize;
+        double r, a, b;
         std::vector<std::array<int, 3>> cells; //cells that are affected by agent's body
     };
 }

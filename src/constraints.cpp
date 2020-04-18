@@ -1,3 +1,4 @@
+#include <structs.h>
 #include "constraints.h"
 using namespace SIPP;
 
@@ -58,6 +59,79 @@ double Constraints::minDist_StraightLine(Point A, Point C, Point D)
     return c.norm();
 }
 
+double Constraints::boxDistance(Vector3D A){
+    return std::max({std::abs(A.i), std::abs(A.j), std::abs(A.k)});
+}
+
+bool Constraints::isMinBoxPointInLineSegment(const Vector3D& C, const Vector3D& D){
+    double boxDist_C = boxDistance(C);
+    double boxDist_D = boxDistance(D);
+    double minBoxDist;
+    if(boxDist_C < boxDist_D) {
+        minBoxDist = boxDist_C;
+        if (std::abs(C.i) == minBoxDist) {
+            return C.i * (D.i - C.i) < 0;
+        } else if (std::abs(C.j) == minBoxDist) {
+            return C.j * (D.j - C.j) < 0;
+        } else {
+            return C.k * (D.k - C.k) < 0;
+        }
+    }
+    else{
+        minBoxDist = boxDist_D;
+        if (std::abs(D.i) == minBoxDist) {
+            return D.i * (C.i - D.i) < 0;
+        } else if (std::abs(D.j) == minBoxDist) {
+            return D.j * (C.j - D.j) < 0;
+        } else {
+            return D.k * (C.k - D.k) < 0;
+        }
+    }
+}
+
+double Constraints::minBoxDist_LineSegment(Vector3D C, Vector3D D){
+    double min_dist;
+    double boxDist_C = boxDistance(C);
+    double boxDist_D = boxDistance(D);
+
+    if(boxDist_C < boxDist_D) {
+        min_dist = boxDist_C;
+    }
+    else{
+        min_dist = boxDist_D;
+    }
+
+    if(!isMinBoxPointInLineSegment(C, D)){
+        return min_dist;
+    }
+    double d_xy = 0, d_yz = 0, d_zx = 0;
+    if(D.j - C.j != 0 || D.i - C.i != 0){
+        d_xy = std::abs(C.j * (D.i - C.i) - C.i * (D.j - C.j)) / (std::abs(D.j - C.j) + std::abs(D.i - C.i));
+    }
+    if(D.k - C.k != 0 || D.j - C.j != 0){
+        d_yz = std::abs(C.k * (D.j - C.j) - C.j * (D.k - C.k)) / (std::abs(D.k - C.k) + std::abs(D.j - C.j));
+    }
+    if(D.i - C.i != 0 || D.k - C.k != 0){
+        d_zx = std::abs(C.i * (D.k - C.k) - C.k * (D.i - C.i)) / (std::abs(D.i - C.i) + std::abs(D.k - C.k));
+    }
+    min_dist = std::min(min_dist, std::max(d_xy, std::max(d_yz, d_zx)));
+    return min_dist;
+}
+
+void Constraints::resetConstraints(int dimx, int dimy, int dimz) {
+    constraints.resize(dimx);
+    for(int i = 0; i < dimx; i++)
+    {
+        constraints[i].resize(dimy);
+        for(int j = 0; j < dimy; j++)
+        {
+            constraints[i][j].resize(dimz);
+            for(int k = 0; k < dimz; k++) {
+                constraints[i][j][k].resize(0);
+            }
+        }
+    }
+}
 
 void Constraints::resetSafeIntervals(int dimx, int dimy, int dimz)
 {
@@ -75,77 +149,145 @@ void Constraints::resetSafeIntervals(int dimx, int dimy, int dimz)
     }
 }
 
+void Constraints::updateConstraints(const Map &map){
+    std::vector<std::array<int,3>> cells;
+    for(auto sec: section_list) {
+        LineOfSight los(collision_models[sec.agent_id]);
+        cells = los.getCellsCrossedByLine(sec.i1, sec.j1, sec.k1, sec.i2, sec.j2, sec.k2, map);
+        for (auto cell: cells)
+            if(map.CellOnGrid(cell[0], cell[1], cell[2]) && !map.CellIsObstacle(cell[0], cell[1], cell[2], 0)) {
+                constraints[cell[0]][cell[1]][cell[2]].push_back(sec);
+            }
+    }
+}
+
 void Constraints::updateCellSafeIntervals(std::array<int, 3> cell)
 {
     if(safe_intervals[cell[0]][cell[1]][cell[2]].size() > 1)
         return;
-    LineOfSight los(agentsize);
-    std::vector<std::array<int, 3>> cells = los.getCells(cell[0], cell[1], cell[2]);
+    LineOfSight los;
+    std::vector<std::array<int,3>> cells = los.getCells(cell[0], cell[1], cell[2]);
     std::vector<section> secs;
     for(int iter = 0; iter < cells.size(); iter++)
         for(int l = 0; l < constraints[cells[iter][0]][cells[iter][1]][cells[iter][2]].size(); l++)
             if(std::find(secs.begin(), secs.end(), constraints[cells[iter][0]][cells[iter][1]][cells[iter][2]][l]) == secs.end())
                 secs.push_back(constraints[cells[iter][0]][cells[iter][1]][cells[iter][2]][l]);
-    for(int iter = 0; iter < secs.size(); iter++)
-    {
+
+    std::vector<std::pair<double, double>> intervals;
+    int i2(cell[0]), j2(cell[1]), k2(cell[2]);
+    Point point(i2, j2, k2);
+    for(int iter = 0; iter < secs.size(); iter++) {
         section sec = secs[iter];
-        double radius = agentsize + sec.size;
         int i0(secs[iter].i1), j0(secs[iter].j1), k0(secs[iter].k1),
-            i1(secs[iter].i2), j1(secs[iter].j2), k1(secs[iter].k2),
-            i2(cell[0]), j2(cell[1]), k2(cell[2]);
-        std::pair<double,double> interval;
-        double dist, mindist;
-        if(i0 == i1 && j0 == j1 && i0 == i2 && j0 == j2)
-            mindist = 0;
-        else
-            mindist = minDist_LineSegment(Point(i2,j2,k2), Point(i0,j0,k0), Point(i1,j1,k1));
-        if(mindist >= radius)
+            i1(secs[iter].i2), j1(secs[iter].j2), k1(secs[iter].k2);
+        Point p0(i0, j0, k0), p1(i1, j1, k1);
+
+        if (!hasBoxPassed(point, p0, p1, sec.agent_id))
             continue;
-        Point point(i2,j2), p0(i0,j0), p1(i1,j1);
-        int cls = point.classify(p0, p1);
-        dist = minDist_StraightLine(point, p0, p1);
-        int da = (i0 - i2)*(i0 - i2) + (j0 - j2)*(j0 - j2);
-        int db = (i1 - i2)*(i1 - i2) + (j1 - j2)*(j1 - j2);
-        double ha = sqrt(da - dist*dist);
-        double size = sqrt(radius*radius - dist*dist);
-        if(cls == 3)
-        {
-            interval.first = sec.g1;
-            interval.second = sec.g1 + (sqrt(radius*radius - dist*dist) - ha)/sec.mspeed;
-        }
-        else if(cls == 4)
-        {
-            interval.first = sec.g2 - sqrt(radius*radius - dist*dist)/sec.mspeed + sqrt(db - dist*dist)/sec.mspeed;
-            interval.second = sec.g2;
-        }
-        else if(da < radius*radius)
-        {
-            if(db < radius*radius)
-            {
+
+        std::pair<double, double> interval;
+        int dir = p0.direction(p1);
+        double r = collision_models[sec.agent_id].r;
+        double a = collision_models[sec.agent_id].a;
+        double b = collision_models[sec.agent_id].b;
+
+        if (isPointInBox(point, p0, sec.agent_id)) {
+            if (isPointInBox(point, p1, sec.agent_id)) {
                 interval.first = sec.g1;
                 interval.second = sec.g2;
             }
-            else
-            {
-                double hb = sqrt(db - dist*dist);
+
+            if (dir == 1) {
                 interval.first = sec.g1;
-                interval.second = sec.g2 - hb/sec.mspeed + size/sec.mspeed;
+                interval.second = sec.g1 + (point.i - p0.i + r) / sec.mspeed;
             }
-        }
-        else
-        {
-            if(db < radius*radius)
-            {
-                interval.first = sec.g1 + ha/sec.mspeed - size/sec.mspeed;
+            if (dir == -1) {
+                interval.first = sec.g1;
+                interval.second = sec.g1 + (p0.i - point.i + r) / sec.mspeed;
+            }
+            if (dir == 2) {
+                interval.first = sec.g1;
+                interval.second = sec.g1 + (point.j - p0.j + r) / sec.mspeed;
+            }
+            if (dir == -2) {
+                interval.first = sec.g1;
+                interval.second = sec.g1 + (p0.j - point.j + r) / sec.mspeed;
+            }
+            if (dir == 3) {
+                interval.first = sec.g1;
+                interval.second = sec.g1 + (point.k - p0.k + b) / sec.mspeed;
+            }
+            if (dir == -3) {
+                interval.first = sec.g1;
+                interval.second = sec.g1 + (p0.k - point.k + a) / sec.mspeed;
+            }
+        } else if (isPointInBox(point, p1, sec.agent_id)) {
+            if (dir == 1) {
+                interval.first = sec.g2 - (p1.i - point.i + r) / sec.mspeed;
                 interval.second = sec.g2;
             }
-            else
-            {
-                interval.first = sec.g1 + ha/sec.mspeed - size/sec.mspeed;
-                interval.second = sec.g1 + ha/sec.mspeed + size/sec.mspeed;
+            if (dir == -1) {
+                interval.first = sec.g2 - (point.i - p1.i + r) / sec.mspeed;
+                interval.second = sec.g2;
+            }
+            if (dir == 2) {
+                interval.first = sec.g2 - (p1.j - point.j + r) / sec.mspeed;
+                interval.second = sec.g2;
+            }
+            if (dir == -2) {
+                interval.first = sec.g2 - (point.j - p1.j + r) / sec.mspeed;
+                interval.second = sec.g2;
+            }
+            if (dir == 3) {
+                interval.first = sec.g2 - (p1.k - point.k + a) / sec.mspeed;
+                interval.second = sec.g2;
+            }
+            if (dir == -3) {
+                interval.first = sec.g2 - (point.k - p1.k + b) / sec.mspeed;
+                interval.second = sec.g2;
+            }
+        } else {
+            if (dir == 1) {
+                interval.first = sec.g1 + (point.i - p0.i - r) / sec.mspeed;
+                interval.second = sec.g1 + (point.i - p0.i + r) / sec.mspeed;
+            }
+            if (dir == -1) {
+                interval.first = sec.g1 + (p1.i - point.i - r) / sec.mspeed;
+                interval.second = sec.g1 + (p1.i - point.i + r) / sec.mspeed;
+            }
+            if (dir == 2) {
+                interval.first = sec.g1 + (point.j - p0.j - r) / sec.mspeed;
+                interval.second = sec.g1 + (point.j - p0.j + r) / sec.mspeed;
+            }
+            if (dir == -2) {
+                interval.first = sec.g1 + (p1.j - point.j - r) / sec.mspeed;
+                interval.second = sec.g1 + (p1.j - point.j + r) / sec.mspeed;
+            }
+            if (dir == 3) {
+                interval.first = sec.g1 + (point.k - p0.k - a) / sec.mspeed;
+                interval.second = sec.g1 + (point.k - p0.k + b) / sec.mspeed;
+            }
+            if (dir == -3) {
+                interval.first = sec.g1 + (p0.k - point.k - b) / sec.mspeed;
+                interval.second = sec.g1 + (p0.k - point.k + a) / sec.mspeed;
             }
         }
-        for(unsigned int j = 0; j < safe_intervals[i2][j2].size(); j++)
+
+        int j = 0;
+        while(j < intervals.size()){
+            if(interval.second < intervals[j].first || interval.first > intervals[j].second){
+                j++;
+            }
+            interval.first = std::min(interval.first, intervals[j].first);
+            interval.second = std::max(interval.second, intervals[j].second);
+            intervals.erase(intervals.begin() + j);
+        }
+        intervals.emplace_back(interval);
+    }
+
+    for(auto interval : intervals)
+    {
+        for(unsigned int j = 0; j < safe_intervals[i2][j2][k2].size(); j++)
         {
             if(safe_intervals[i2][j2][k2][j].first <= interval.first && safe_intervals[i2][j2][k2][j].second >= interval.first)
             {
@@ -219,12 +361,12 @@ std::vector<std::pair<double, double> > Constraints::getSafeIntervals(Node curNo
     return safe_intervals[curNode.i][curNode.j][curNode.k];
 }
 
-void Constraints::addStartConstraint(int i, int j, int k, int size, std::vector<std::array<int, 3> > cells, double agentsize)
+void Constraints::addStartConstraint(int i, int j, int k, int size, std::vector<std::array<int, 3> > cells, int agent_id)
 {
     section sec(i, j, k, i, j, k, 0, size);
-    sec.size = agentsize;
+    sec.agent_id = agent_id;
     for(auto cell: cells)
-        constraints[cell[0]][cell[1]][cell[2]].insert(constraints[cell[0]][cell[1]][cell[2]].begin(),sec);
+        constraints[cell[0]][cell[1]][cell[2]].insert(constraints[cell[0]][cell[1]][cell[2]].begin(), sec);
     return;
 }
 
@@ -243,28 +385,26 @@ void Constraints::removeStartConstraint(std::vector<std::array<int, 3> > cells, 
     return;
 }
 
-void Constraints::addConstraints(const std::vector<Node> &sections, double size, double mspeed, const Map &map)
+void Constraints::addConstraints(const std::vector<Node> &sections, int agent_id, double mspeed, const Map &map)
 {
-    std::vector<std::array<int,3>> cells;
-    LineOfSight los(size);
     section sec(sections.back(), sections.back());
     sec.g2 = CN_INFINITY;
-    sec.size = size;
+    sec.agent_id = agent_id;
     sec.mspeed = mspeed;
-    cells = los.getCellsCrossedByLine(sec.i1, sec.j1, sec.k1, sec.i2, sec.j2, sec.k2, map);
-    for(auto cell: cells)
-        constraints[cell[0]][cell[1]][cell[2]].push_back(sec);
-    if(sec.g1 == 0)
-        for(auto cell: cells)
-            safe_intervals[cell[0]][cell[1]][cell[2]].clear();
+    section_list.emplace_back(sec);
+
     for(unsigned int a = 1; a < sections.size(); a++)
     {
-        cells = los.getCellsCrossedByLine(sections[a-1].i, sections[a-1].j, sections[a-1].k, sections[a].i, sections[a].j, sections[a].k, map);
+//        cells = los.getCellsCrossedByLine(sections[a-1].i, sections[a-1].j, sections[a-1].k, sections[a].i, sections[a].j, sections[a].k, map);
         sec = section(sections[a-1], sections[a]);
-        sec.size = size;
+        sec.agent_id = agent_id;
         sec.mspeed = mspeed;
-        for(unsigned int i = 0; i < cells.size(); i++)
-            constraints[cells[i][0]][cells[i][1]][cells[i][2]].push_back(sec);
+        section_list.emplace_back(sec);
+//        for(unsigned int i = 0; i < cells.size(); i++)
+//            constraints[cells[i][0]][cells[i][1]][cells[i][2]].push_back(sec);
+
+
+
         /*if(a+1 == sections.size())
             updateSafeIntervals(cells,sec,true);
         else
@@ -278,7 +418,7 @@ std::vector<std::pair<double,double>> Constraints::findIntervals(Node curNode, s
     if(curNodeIntervals.empty())
         return curNodeIntervals;
     EAT.clear();
-    LineOfSight los(agentsize);
+    LineOfSight los;
     std::vector<std::array<int,3>> cells = los.getCellsCrossedByLine(curNode.i, curNode.j, curNode.k, curNode.Parent->i, curNode.Parent->j, curNode.Parent->k, map);
     std::vector<section> sections(0);
     section sec;
@@ -344,6 +484,11 @@ std::vector<std::pair<double,double>> Constraints::findIntervals(Node curNode, s
 
 bool Constraints::hasCollision(const Node &curNode, double startTimeA, const section &constraint, bool &goal_collision)
 {
+    if(curNode.Parent->i == 9 && curNode.Parent->k == 0 && curNode.i == 10 && curNode.k == 0){
+        int debug = 0;
+    }
+
+
     double endTimeA(startTimeA + curNode.g - curNode.Parent->g), startTimeB(constraint.g1), endTimeB(constraint.g2);
     if(startTimeA > endTimeB || startTimeB > endTimeA)
         return false;
@@ -354,35 +499,26 @@ bool Constraints::hasCollision(const Node &curNode, double startTimeA, const sec
     if(startTimeB > startTimeA)
     {
       // Move A to the same time instant as B
-      A += VA*(startTimeB-startTimeA);
-      startTimeA=startTimeB;
+      A += VA*(startTimeB - startTimeA);
+      startTimeA = startTimeB;
     }
     else if(startTimeB < startTimeA)
     {
       B += VB*(startTimeA - startTimeB);
       startTimeB = startTimeA;
     }
-    double r(constraint.size + agentsize + inflateintervals); //combined radius
-    Vector3D w(B - A);
-    double c(w*w - r*r);
-    if(c < 0)
-    {
-        if(constraint.g2 == CN_INFINITY)
-            goal_collision = true;
-        return true;
-    } // Agents are currently colliding
 
-    // Use the quadratic formula to detect nearest collision (if any)
-    Vector3D v(VA - VB);
-    double a(v*v);
-    double b(w*v);
+    double r = collision_models[constraint.agent_id].r;
+    double a = collision_models[constraint.agent_id].a;
+    double b = collision_models[constraint.agent_id].b;
 
-    double dscr(b*b - a*c);
-    if(dscr <= 0)
-        return false;
+    Vector3D C = (B - A + Vector3D(0, 0, (a-b)/2));
+    C.k = C.k * 2 * r / (a + b);
+    Vector3D D = (B - A + (VB - VA) * (std::min(endTimeB, endTimeA) - startTimeA) + Vector3D(0, 0, (a-b)/2));
+    D.k = D.k * 2 * r / (a + b);
+    double minBoxDist = minBoxDist_LineSegment(C, D);
 
-    double ctime = (b - sqrt(dscr))/a;
-    if(ctime > -CN_EPSILON && ctime < std::min(endTimeB,endTimeA) - startTimeA + CN_EPSILON)
+    if(minBoxDist < r - CN_EPSILON)
     {
         if(constraint.g2 == CN_INFINITY)
             goal_collision = true;
@@ -391,3 +527,80 @@ bool Constraints::hasCollision(const Node &curNode, double startTimeA, const sec
     else
         return false;
 }
+
+bool Constraints::hasBoxPassed(Point A, Point C, Point D, int section_agent_id){
+    int direction = C.direction(D);
+
+    double r = collision_models[section_agent_id].r;
+    double a = collision_models[section_agent_id].a;
+    double b = collision_models[section_agent_id].b;
+
+    std::vector<double> box;
+    box.resize(6);
+    if(std::abs(direction) == 1){
+        if(direction > 0){
+            box[0] = C.i - r;
+            box[3] = D.i + r;
+        }
+        else{
+            box[0] = D.i - r;
+            box[3] = C.i + r;
+        }
+        box[1] = C.j - r;
+        box[2] = C.k - b;
+        box[4] = C.j + r;
+        box[5] = C.k + a;
+    }
+    if(std::abs(direction) == 2){
+        if(direction > 0){
+            box[1] = C.j - r;
+            box[4] = D.j + r;
+        }
+        else{
+            box[1] = D.j - r;
+            box[4] = C.j + r;
+        }
+        box[0] = C.i - r;
+        box[2] = C.k - b;
+        box[3] = C.i + r;
+        box[5] = C.k + a;
+    }
+    if(std::abs(direction) == 3){
+        if(direction > 0){
+            box[2] = C.i - b;
+            box[5] = D.i + a;
+        }
+        else{
+            box[2] = D.i - b;
+            box[5] = C.i + a;
+        }
+        box[0] = C.i - r;
+        box[1] = C.j - r;
+        box[3] = C.i + r;
+        box[4] = C.j + r;
+    }
+
+    return A.i > box[0] + CN_EPSILON && A.i < box[3] - CN_EPSILON
+           && A.j > box[1] + CN_EPSILON && A.j < box[4] - CN_EPSILON
+           && A.j > box[2] + CN_EPSILON && A.k < box[5] - CN_EPSILON;
+}
+
+bool Constraints::isPointInBox(Point A, Point C, int section_agent_id){
+    double r = collision_models[section_agent_id].r;
+    double a = collision_models[section_agent_id].a;
+    double b = collision_models[section_agent_id].b;
+
+    std::vector<double> box;
+    box.resize(6);
+    box[0] = C.i - r;
+    box[1] = C.j - r;
+    box[2] = C.k - b;
+    box[3] = C.i + r;
+    box[4] = C.j + r;
+    box[5] = C.k + a;
+
+    return A.i > box[0] + CN_EPSILON && A.i < box[3] - CN_EPSILON
+           && A.j > box[1] + CN_EPSILON && A.j < box[4] - CN_EPSILON
+           && A.j > box[2] + CN_EPSILON && A.k < box[5] - CN_EPSILON;
+}
+

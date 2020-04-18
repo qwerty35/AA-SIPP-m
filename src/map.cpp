@@ -11,6 +11,7 @@ Map::Map()
 Map::~Map()
 {	
     Grid.clear();
+    GridEdge.clear();
 }
 
 //bool Map::getMap(const char* FileName)
@@ -108,14 +109,24 @@ Map::~Map()
 //}
 
 
-bool Map::CellIsTraversable(int i, int j, int k) const
-{
-    return (Grid[i][j][k] == 0);
-}
+//bool Map::CellIsTraversable(int i, int j, int k) const
+//{
+//    return (Grid[i][j][k] == 0);
+//}
 
 bool Map::CellIsObstacle(int i, int j, int k) const
 {
-    return (Grid[i][j][k] != 0);
+    return (Grid[i][j][k] > 0);
+}
+
+bool Map::CellIsObstacle(int i, int j, int k, double r) const
+{
+    return (Grid[i][j][k] + r > 0);
+}
+
+bool Map::CheckLine(int i, int j, int k, int n, double r) const
+{
+    return (GridEdge[i][j][k][n] + r > 0);
 }
 
 bool Map::CellOnGrid(int i, int j, int k) const
@@ -137,8 +148,8 @@ int Map::getValue(int i, int j, int k) const
 
 std::vector<Node> Map::getValidMoves(int i, int j, int k, int null, double size) const
 {
-   LineOfSight los;
-   los.setSize(size);
+//   LineOfSight los;
+//   los.setSize(size);
    std::vector<Node> moves;
    moves = {Node(1,0,0,1.0), Node(0,1,0,1.0), Node(0,0,1,1.0), Node(-1,0,0,1.0), Node(0,-1,0,1.0), Node(0,0,-1,1.0)};
 //   if(n == 2)
@@ -163,8 +174,9 @@ std::vector<Node> Map::getValidMoves(int i, int j, int k, int null, double size)
    std::vector<bool> valid(moves.size(), true);
    for(int n = 0; n < moves.size(); n++)
        if(!CellOnGrid(i + moves[n].i, j + moves[n].j, k + moves[n].k)
-               || CellIsObstacle(i + moves[n].i, j + moves[n].j, k + moves[n].k)
-               || !los.checkLine(i, j, k, i + moves[n].i, j + moves[n].j, k + moves[n].k, *this))
+//               || CellIsObstacle(i + moves[n].i, j + moves[n].j, k + moves[n].k, size)
+               || CheckLine(i, j, k, n, size))
+//               || !los.checkLine(i, j, k, i + moves[n].i, j + moves[n].j, k + moves[n].k, *this))
            valid[n] = false;
    std::vector<Node> v_moves = {};
    for(int n = 0; n < valid.size(); n++)

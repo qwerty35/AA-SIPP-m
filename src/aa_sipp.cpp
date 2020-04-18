@@ -316,10 +316,12 @@ SearchResult AA_SIPP::startSearch(Map &map, Task &task, DynamicObstacles &obstac
     do
     {
         constraints = new Constraints(map.dimx, map.dimy, map.dimz);
-        for(int k = 0; k < obstacles.getNumberOfObstacles(); k++)
-        {
-            constraints->addConstraints(obstacles.getSections(k), obstacles.getSize(k), obstacles.getMSpeed(k), map);
-        }
+
+        //TODO: dynamic obstacles
+//        for(int k = 0; k < obstacles.getNumberOfObstacles(); k++)
+//        {
+//            constraints->addConstraints(obstacles.getSections(k), obstacles.getAgentType(k), obstacles.getMSpeed(k), map);
+//        }
         sresult.pathInfo.clear();
         sresult.pathInfo.resize(task.getNumberOfAgents());
         sresult.agents = task.getNumberOfAgents();
@@ -329,26 +331,22 @@ SearchResult AA_SIPP::startSearch(Map &map, Task &task, DynamicObstacles &obstac
         for(int k = 0; k < task.getNumberOfAgents(); k++)
         {
             curagent = task.getAgent(k);
-            constraints->setParams(curagent.size, curagent.mspeed, curagent.rspeed, config->planforturns, config->inflatecollisionintervals);
-            lineofsight.setSize(curagent.size);
-            if(config->startsafeinterval > 0)
-            {
-                auto cells = lineofsight.getCells(curagent.start_i,curagent.start_j,curagent.start_k);
-                constraints->addStartConstraint(curagent.start_i, curagent.start_j, curagent.start_k, config->startsafeinterval, cells, curagent.size);
-            }
+            constraints->setParams(curagent.agent_id, curagent.collision_models, curagent.mspeed, curagent.rspeed, config->planforturns, config->inflatecollisionintervals);
+//            lineofsight.setSize(0);
+//            if(config->startsafeinterval > 0)
+//            {
+//                auto cells = lineofsight.getCells(curagent.start_i,curagent.start_j,curagent.start_k);
+//                constraints->addStartConstraint(curagent.start_i, curagent.start_j, curagent.start_k, config->startsafeinterval, cells, curagent.agent_type);
+//            }
         }
         for(unsigned int numOfCurAgent = 0; numOfCurAgent < task.getNumberOfAgents(); numOfCurAgent++)
         {
             curagent = task.getAgent(current_priorities[numOfCurAgent]);
-            constraints->setParams(curagent.size, curagent.mspeed, curagent.rspeed, config->planforturns, config->inflatecollisionintervals);
+            constraints->setParams(curagent.agent_id, curagent.collision_models, curagent.mspeed, curagent.rspeed, config->planforturns, config->inflatecollisionintervals);
             lineofsight.setSize(curagent.size);
-            if(config->startsafeinterval > 0)
-            {
-                auto cells = lineofsight.getCells(curagent.start_i, curagent.start_j, curagent.start_k);
-                constraints->removeStartConstraint(cells, curagent.start_i, curagent.start_j, curagent.start_k);
-            }
+
             if(findPath(current_priorities[numOfCurAgent], map))
-                constraints->addConstraints(sresult.pathInfo[current_priorities[numOfCurAgent]].sections, curagent.size, curagent.mspeed, map);
+                constraints->addConstraints(sresult.pathInfo[current_priorities[numOfCurAgent]].sections, curagent.agent_id, curagent.mspeed, map);
             else
             {
                 bad_i = current_priorities[numOfCurAgent];
@@ -382,9 +380,9 @@ SearchResult AA_SIPP::startSearch(Map &map, Task &task, DynamicObstacles &obstac
     sresult.tries = tries;
     if(sresult.pathfound)
     {
-        std::vector<conflict> confs = CheckConflicts(task);
-        for(unsigned int i = 0; i < confs.size(); i++)
-            std::cout<<confs[i].i<<" "<<confs[i].j<<" "<<confs[i].k<<" "<<confs[i].g<<" "<<confs[i].agent1<<" "<<confs[i].agent2<<"\n";
+//        std::vector<conflict> confs = CheckConflicts(task);
+//        for(unsigned int i = 0; i < confs.size(); i++)
+//            std::cout<<confs[i].i<<" "<<confs[i].j<<" "<<confs[i].k<<" "<<confs[i].g<<" "<<confs[i].agent1<<" "<<confs[i].agent2<<"\n";
     }
     return sresult;
 }
@@ -418,7 +416,9 @@ bool AA_SIPP::findPath(unsigned int numOfCurAgent, const Map &map)
         open[i].clear();
     ResultPathInfo resultPath;
     openSize = 0;
+    constraints->resetConstraints(map.dimx, map.dimy, map.dimz);
     constraints->resetSafeIntervals(map.dimx, map.dimy, map.dimz);
+    constraints->updateConstraints(map);
     constraints->updateCellSafeIntervals({curagent.start_i, curagent.start_j, curagent.start_k});
     Node curNode(curagent.start_i, curagent.start_j, curagent.start_k, 0, 0), goalNode(curagent.goal_i, curagent.goal_j, curagent.goal_k, CN_INFINITY, CN_INFINITY);
     curNode.F = getHValue(curNode.i, curNode.j, curNode.k);

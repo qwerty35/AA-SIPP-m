@@ -14,7 +14,8 @@
 namespace SIPP {
     class Map {
     public:
-        std::vector<std::vector<std::vector<int>>> Grid;
+        std::vector<std::vector<std::vector<double>>> Grid;
+        std::vector<std::vector<std::vector<std::vector<double>>>> GridEdge;
         unsigned int dimx, dimy, dimz;
 
     public:
@@ -29,6 +30,10 @@ namespace SIPP {
         bool CellOnGrid(int i, int j, int k) const;
 
         bool CellIsObstacle(int i, int j, int k) const;
+
+        bool CellIsObstacle(int i, int j, int k, double r) const;
+
+        bool CheckLine(int i, int j, int k, int n, double r) const;
 
         int getValue(int i, int j, int k) const;
 

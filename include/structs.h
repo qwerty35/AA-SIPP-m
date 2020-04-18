@@ -5,8 +5,17 @@
 #include <vector>
 #include <string>
 #include <math.h>
+#include <iostream>
 
 namespace SIPP {
+    struct CollisionModel{
+        CollisionModel(double _r = -1, double _a = -1, double _b = -1) : r(_r), a(_a), b(_b) {}
+        double r;
+        double a;
+        double b;
+    };
+    typedef std::vector<CollisionModel> CollisionModels;
+
     struct conflict {
         int agent1;
         int agent2;
@@ -18,7 +27,6 @@ namespace SIPP {
         double g;
     };
 
-
     struct Agent {
         std::string id;
         int start_i;
@@ -29,6 +37,8 @@ namespace SIPP {
         int goal_j;
         int goal_k;
         double goal_heading;
+        int agent_id;
+        CollisionModels collision_models;
         double size;
         double rspeed;
         double mspeed;
@@ -40,6 +50,7 @@ namespace SIPP {
             goal_i = -1;
             goal_j = -1;
             goal_k = -1;
+            agent_id = -1;
             size = CN_DEFAULT_SIZE;
             mspeed = CN_DEFAULT_MSPEED;
             rspeed = CN_DEFAULT_RSPEED;
@@ -84,7 +95,7 @@ namespace SIPP {
         ~Node() { Parent = nullptr; }
 
         int i, j, k;
-        double size;
+//        double size;
         double g;
         double F;
         double heading;
@@ -120,12 +131,14 @@ namespace SIPP {
         int i2;
         int j2;
         int k2;
-        double size;
+
+        int agent_id;
+//        double size;
         double g1;
         double g2;//is needed for goal and wait actions
         double mspeed;
 
-        bool operator==(const section &comp) const { return (i1 == comp.i1 && j1 == comp.j1 && g1 == comp.g1); }
+        bool operator==(const section &comp) const { return (i1 == comp.i1 && j1 == comp.j1 && k1 == comp.k1 && g1 == comp.g1); }
 
     };
 
@@ -203,6 +216,32 @@ namespace SIPP {
             if (p1 == p2)
                 return 6;//DESTINATION;
             return 7;//BETWEEN;
+        }
+
+        int direction(Point &p1){
+            Point p0 = *this;
+            int delta_x = p1.i - p0.i;
+            int delta_y = p1.j - p0.j;
+            int delta_z = p1.k - p0.k;
+
+            if((delta_x != 0 && delta_y != 0) || (delta_x != 0 && delta_z != 0) || (delta_y != 0 && delta_z != 0)){
+                std::cerr << "sipp: invalid diagonal move";
+                return 4;
+            }
+
+            if(delta_x > 0)
+                return 1;
+            if(delta_x < 0)
+                return -1;
+            if(delta_y > 0)
+                return 2;
+            if(delta_y < 0)
+                return -2;
+            if(delta_z > 0)
+                return 3;
+            if(delta_z < 0)
+                return -3;
+            return 0;
         }
     };
 }
